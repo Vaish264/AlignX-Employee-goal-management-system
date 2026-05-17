@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AlignX</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <section class="landing-page" id="landingPage">
+      <header class="landing-nav">
+        <div class="brand dark">
+          <div class="brand-mark">AQ</div>
+          <div>
+            <h1>AlignX</h1>
+            <p>Goal alignment portal</p>
+          </div>
+        </div>
+        <div class="landing-actions">
+          <button class="secondary-button" id="openLoginTopBtn">Login</button>
+          <button class="button" id="startDemoBtn">Start demo</button>
+        </div>
+      </header>
+
+      <main class="hero">
+        <img src="assets/landing-hero.png" alt="Goal tracking dashboard preview" />
+        <div class="hero-overlay"></div>
+        <div class="hero-copy">
+          <p class="eyebrow">In-house goal setting and tracking</p>
+          <h2>AlignX</h2>
+          <p>Create goals, approve sheets, capture quarterly achievements, and keep HR governance audit-ready in one focused web portal.</p>
+          <div class="hero-actions">
+            <button class="button" id="openLoginHeroBtn">Login to portal</button>
+            <button class="secondary-button light" id="viewFeaturesBtn">View features</button>
+          </div>
+        </div>
+      </main>
+
+      <section class="feature-band" id="featureBand">
+        <article>
+          <span>01</span>
+          <h3>Goal lifecycle</h3>
+          <p>Employees draft up to 8 goals with enforced weightage rules and manager approval.</p>
+        </article>
+        <article>
+          <span>02</span>
+          <h3>Quarterly check-ins</h3>
+          <p>Teams track planned vs actual achievements with structured L1 feedback.</p>
+        </article>
+        <article>
+          <span>03</span>
+          <h3>HR governance</h3>
+          <p>Admins get completion visibility, shared KPIs, CSV reports, unlocks, and audit logs.</p>
+        </article>
+      </section>
+    </section>
+
+    <section class="login-page" id="loginPage" hidden>
+      <div class="login-panel">
+        <button class="back-button" id="backToLandingBtn">Back</button>
+        <div class="brand dark">
+          <div class="brand-mark">AQ</div>
+          <div>
+            <h1>AlignX</h1>
+            <p>Secure demo login</p>
+          </div>
+        </div>
+
+        <form id="loginForm" class="login-form">
+          <label class="form-field">
+            <span class="field-label">Role</span>
+            <select id="loginRole" class="select">
+              <option value="employee">Employee</option>
+              <option value="manager">Manager</option>
+              <option value="admin">Admin / HR</option>
+            </select>
+          </label>
+          <label class="form-field">
+            <span class="field-label">User</span>
+            <select id="loginUser" class="select"></select>
+          </label>
+          <label class="form-field">
+            <span class="field-label">Password</span>
+            <input id="loginPassword" class="input" type="password" value="alignx" />
+          </label>
+          <button class="button" type="submit">Sign in</button>
+        </form>
+
+        <div class="demo-credentials">
+          <p class="hint">Demo password: <strong>alignx</strong></p>
+          <div class="quick-login">
+            <button class="secondary-button" data-demo-login="e1">Employee</button>
+            <button class="secondary-button" data-demo-login="m1">Manager</button>
+            <button class="secondary-button" data-demo-login="a1">Admin</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="login-art">
+        <div class="login-art-copy">
+          <p class="eyebrow">AlignX portal</p>
+          <h2>Welcome back!</h2>
+          <p>Pick your role, sign in, and continue tracking goals, approvals, and quarterly progress.</p>
+        </div>
+      </div>
+    </section>
+
+    <div class="app-shell" id="portalPage" hidden>
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">AQ</div>
+          <div>
+            <h1>AlignX</h1>
+            <p>Goal alignment portal</p>
+          </div>
+        </div>
+
+        <div class="account-switcher">
+          <label class="portal-control" for="roleSelect">
+            <span class="field-label">Role</span>
+            <select id="roleSelect" class="select"></select>
+          </label>
+
+          <label class="portal-control" for="userSelect">
+            <span class="field-label">Signed in as</span>
+            <select id="userSelect" class="select"></select>
+          </label>
+        </div>
+
+        <nav class="nav" id="nav"></nav>
+
+        <div class="sidebar-actions">
+          <button class="ghost-button" id="themeToggleBtn" type="button">Dark mode</button>
+          <button class="ghost-button" id="logoutBtn">Logout</button>
+          <button class="ghost-button" id="resetDataBtn">Reset demo data</button>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow" id="roleEyebrow"></p>
+            <h2 id="pageTitle"></h2>
+          </div>
+          <div class="cycle-pill">
+            <span id="activeWindow"></span>
+          </div>
+        </header>
+
+        <section id="content" class="content"></section>
+      </main>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <template id="goalRowTemplate">
+      <tr>
+        <td>
+          <input data-field="title" class="input" />
+          <textarea data-field="description" class="textarea" rows="2"></textarea>
+        </td>
+        <td>
+          <select data-field="thrustArea" class="select compact">
+            <option>Revenue Growth</option>
+            <option>Operational Excellence</option>
+            <option>Customer Experience</option>
+            <option>People Development</option>
+            <option>Safety & Compliance</option>
+            <option>Innovation</option>
+          </select>
+        </td>
+        <td>
+          <select data-field="uom" class="select compact">
+            <option value="min">Numeric / % - Higher better</option>
+            <option value="max">Numeric / % - Lower better</option>
+            <option value="timeline">Timeline</option>
+            <option value="zero">Zero-based</option>
+          </select>
+        </td>
+        <td><input data-field="target" class="input compact" /></td>
+        <td><input data-field="weightage" class="input compact" type="number" min="10" max="100" /></td>
+        <td><button class="icon-button danger" data-action="remove" title="Remove goal">×</button></td>
+      </tr>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>
