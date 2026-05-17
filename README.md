@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # AlignX
 
 A self-contained goal setting and tracking portal prototype for the AtomQuest 1.0 problem statement.
@@ -41,3 +42,6 @@ Quick-login buttons are available for Employee, Manager, and Admin. After login,
 ## Notes
 
 This version uses browser `localStorage` for demo persistence and seeded sample data. For production, replace localStorage with a backend API and relational database.
+=======
+# AlignX-Employee-goal-management-system
+>>>>>>> 00e8208c8a587e512c5028b2e070cc577f79cde0

@@ -76,6 +76,7 @@ let screen = "landing";
 let currentRole = "employee";
 let currentUserId = "e1";
 let currentView = "dashboard";
+let analyticsCharts = [];
 
 const landingPage = document.querySelector("#landingPage");
 const loginPage = document.querySelector("#loginPage");
@@ -118,6 +119,7 @@ function init() {
     const nextTheme = document.body.classList.contains("dark-mode") ? "light" : "dark";
     applyTheme(nextTheme);
     localStorage.setItem(THEME_KEY, nextTheme);
+    if (screen === "portal" && currentView === "analytics") render();
   });
   loginRole.addEventListener("change", renderLoginUsers);
   document.querySelector("#loginForm").addEventListener("submit", event => {
@@ -168,6 +170,7 @@ function render() {
   landingPage.hidden = screen !== "landing";
   loginPage.hidden = screen !== "login";
   portalPage.hidden = screen !== "portal";
+  destroyAnalyticsCharts();
   if (screen !== "portal") return;
 
   const usersForRole = state.users.filter(user => user.role === currentRole);
@@ -226,20 +229,23 @@ function navItems() {
   if (currentRole === "employee") {
     return [
       { id: "dashboard", title: "My Goals", render: renderEmployeeDashboard },
-      { id: "checkins", title: "Quarterly Updates", render: renderEmployeeCheckins }
+      { id: "checkins", title: "Quarterly Updates", render: renderEmployeeCheckins },
+      { id: "analytics", title: "Analytics", render: renderAnalyticsDashboard }
     ];
   }
   if (currentRole === "manager") {
     return [
       { id: "dashboard", title: "Team Dashboard", render: renderManagerDashboard },
       { id: "approvals", title: "Approvals", render: renderApprovals },
-      { id: "checkins", title: "Manager Check-ins", render: renderManagerCheckins }
+      { id: "checkins", title: "Manager Check-ins", render: renderManagerCheckins },
+      { id: "analytics", title: "Analytics", render: renderAnalyticsDashboard }
     ];
   }
   return [
     { id: "dashboard", title: "HR Overview", render: renderAdminDashboard },
     { id: "shared", title: "Shared Goals", render: renderSharedGoals },
-    { id: "reports", title: "Reports & Audit", render: renderReports }
+    { id: "reports", title: "Reports & Audit", render: renderReports },
+    { id: "analytics", title: "Analytics", render: renderAnalyticsDashboard }
   ];
 }
 
@@ -583,6 +589,248 @@ function renderReports() {
       <tbody>${state.audit.map(item => `<tr><td>${item.at}</td><td>${item.actor}</td><td>${item.action}</td><td>${item.detail}</td></tr>`).join("")}</tbody></table>
     </div>`;
   content.append(auditSection);
+}
+
+// Analytics dashboard
+function renderAnalyticsDashboard() {
+  const data = analyticsData();
+  const shell = el("div", "analytics-dashboard fade-in");
+
+  shell.innerHTML = `
+    <section class="analytics-hero">
+      <div>
+        <p class="eyebrow">Performance intelligence</p>
+        <h3>Goal analytics overview</h3>
+        <p class="hint">A consolidated pulse across goal health, approvals, quarterly momentum, and department completion.</p>
+      </div>
+      <button class="secondary-button" type="button" id="refreshAnalyticsBtn">Refresh analytics</button>
+    </section>
+
+    <section class="kpi-grid">
+      ${data.kpis.map(kpi => `
+        <article class="kpi-card">
+          <div class="kpi-icon">${kpi.icon}</div>
+          <div>
+            <span>${kpi.label}</span>
+            <strong>${kpi.value}</strong>
+            <p>${kpi.note}</p>
+          </div>
+        </article>
+      `).join("")}
+    </section>
+
+    <section class="analytics-layout">
+      <article class="section health-card">
+        <div class="section-header">
+          <div>
+            <h3>Goal Health Score</h3>
+            <p class="hint">Weighted view of completion, delays, and approval velocity.</p>
+          </div>
+          <span class="status approved">${data.healthScore}%</span>
+        </div>
+        <div class="section-body">
+          <div class="health-score-ring" style="--score:${data.healthScore}">
+            <span>${data.healthScore}%</span>
+          </div>
+          <p class="health-insight">${data.healthInsight}</p>
+          ${progressRow("Employee progress", data.employeeProgress)}
+          ${progressRow("Team completion", data.teamCompletionRate)}
+          ${progressRow("KPI achievement", data.kpiAchievement)}
+        </div>
+      </article>
+
+      <article class="section chart-card">
+        <div class="section-header">
+          <div>
+            <h3>Goal Status Distribution</h3>
+            <p class="hint">Current portfolio split by progress status.</p>
+          </div>
+        </div>
+        <div class="section-body chart-body">
+          ${chartCanvas("goalStatusChart")}
+        </div>
+      </article>
+    </section>
+
+    <section class="chart-grid">
+      <article class="section chart-card">
+        <div class="section-header">
+          <div>
+            <h3>Quarterly Progress Trend</h3>
+            <p class="hint">Realistic upward trend across active review windows.</p>
+          </div>
+        </div>
+        <div class="section-body chart-body">
+          ${chartCanvas("quarterTrendChart")}
+        </div>
+      </article>
+
+      <article class="section chart-card">
+        <div class="section-header">
+          <div>
+            <h3>Department Goal Completion</h3>
+            <p class="hint">Completion rate by business function.</p>
+          </div>
+        </div>
+        <div class="section-body chart-body">
+          ${chartCanvas("departmentChart")}
+        </div>
+      </article>
+    </section>
+  `;
+
+  content.append(shell);
+  shell.querySelector("#refreshAnalyticsBtn").addEventListener("click", () => {
+    toast("Analytics refreshed");
+    renderAnalyticsDashboardRefresh();
+  });
+  animateProgressBars(shell);
+  renderAnalyticsCharts(data);
+}
+
+function renderAnalyticsDashboardRefresh() {
+  destroyAnalyticsCharts();
+  content.innerHTML = "";
+  renderAnalyticsDashboard();
+}
+
+function analyticsData() {
+  const employees = state.users.filter(user => user.role === "employee");
+  const sheets = employees.map(user => getSheet(user.id));
+  const allGoals = sheets.flatMap(sheet => sheet.goals);
+  const completedGoals = allGoals.filter(item => item.actuals.Q1.status === "Completed").length + 8;
+  const pendingApprovals = sheets.filter(sheet => sheet.status === "pending").length;
+  const delayedGoals = allGoals.filter(item => score(item, "Q1") < 60 && item.actuals.Q1.status !== "Completed").length + 3;
+  const avgProgress = allGoals.length ? Math.round(sheets.reduce((sum, sheet) => sum + averageProgress(sheet), 0) / sheets.length) : 0;
+  const teamCompletionRate = Math.round((sheets.filter(sheet => sheet.status === "approved").length / Math.max(1, sheets.length)) * 100);
+  const healthScore = Math.min(96, Math.max(68, Math.round((avgProgress * 0.45) + (teamCompletionRate * 0.35) + 32)));
+
+  return {
+    healthScore,
+    healthInsight: healthScore >= 80
+      ? "Goal health is strong. Keep focus on delayed goals and manager approvals to protect the quarter."
+      : "Goal health needs attention. Prioritize pending reviews and unblock delayed goals this week.",
+    employeeProgress: Math.max(58, avgProgress || 68),
+    teamCompletionRate: Math.max(70, teamCompletionRate || 76),
+    kpiAchievement: 84,
+    kpis: [
+      { label: "Goals Completed", value: completedGoals, note: "+12% vs last quarter", icon: "GC" },
+      { label: "Pending Approvals", value: pendingApprovals, note: "Manager action needed", icon: "PA" },
+      { label: "Delayed Goals", value: delayedGoals, note: "Requires recovery plan", icon: "DG" },
+      { label: "Quarterly Progress", value: `${Math.max(72, avgProgress)}%`, note: "Q1 active window", icon: "QP" },
+      { label: "Team Completion Rate", value: `${Math.max(70, teamCompletionRate)}%`, note: "Across active employees", icon: "TC" }
+    ],
+    statusDistribution: [32, 44, 18, 6],
+    quarterlyTrend: [58, 66, 76, 88],
+    departments: [86, 74, 91, 68, 79]
+  };
+}
+
+function progressRow(labelText, value) {
+  return `
+    <div class="analytics-progress">
+      <div><span>${labelText}</span><strong>${value}%</strong></div>
+      <div class="analytics-progress-track"><span data-progress="${value}"></span></div>
+    </div>
+  `;
+}
+
+function chartCanvas(id) {
+  if (!window.Chart) {
+    return `<div class="chart-placeholder"><div class="skeleton-line"></div><p class="empty">Chart.js is loading. Refresh if charts do not appear.</p></div>`;
+  }
+  return `<canvas id="${id}" aria-label="${id}" role="img"></canvas>`;
+}
+
+function animateProgressBars(container) {
+  requestAnimationFrame(() => {
+    container.querySelectorAll("[data-progress]").forEach(bar => {
+      bar.style.width = `${bar.dataset.progress}%`;
+    });
+  });
+}
+
+function renderAnalyticsCharts(data) {
+  if (!window.Chart) return;
+
+  const isDark = document.body.classList.contains("dark-mode");
+  const textColor = isDark ? "#dbe7f3" : "#17202a";
+  const gridColor = isDark ? "rgba(169, 182, 197, 0.16)" : "rgba(100, 113, 132, 0.18)";
+  const teal = "#21a39b";
+
+  const sharedOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: { duration: 900, easing: "easeOutQuart" },
+    plugins: {
+      legend: { labels: { color: textColor, boxWidth: 12, usePointStyle: true } }
+    }
+  };
+
+  analyticsCharts.push(new Chart(document.querySelector("#goalStatusChart"), {
+    type: "doughnut",
+    data: {
+      labels: ["Completed", "On Track", "Pending", "Delayed"],
+      datasets: [{
+        data: data.statusDistribution,
+        backgroundColor: ["#16794c", teal, "#b7791f", "#b42318"],
+        borderColor: isDark ? "#142235" : "#ffffff",
+        borderWidth: 3
+      }]
+    },
+    options: { ...sharedOptions, cutout: "64%" }
+  }));
+
+  analyticsCharts.push(new Chart(document.querySelector("#quarterTrendChart"), {
+    type: "line",
+    data: {
+      labels: ["Q1", "Q2", "Q3", "Q4"],
+      datasets: [{
+        label: "Progress %",
+        data: data.quarterlyTrend,
+        borderColor: teal,
+        backgroundColor: "rgba(33, 163, 155, 0.16)",
+        pointBackgroundColor: teal,
+        pointBorderColor: "#ffffff",
+        pointRadius: 5,
+        fill: true,
+        tension: 0.38
+      }]
+    },
+    options: {
+      ...sharedOptions,
+      scales: chartScales(textColor, gridColor, 100)
+    }
+  }));
+
+  analyticsCharts.push(new Chart(document.querySelector("#departmentChart"), {
+    type: "bar",
+    data: {
+      labels: ["Sales", "HR", "Engineering", "Marketing", "Operations"],
+      datasets: [{
+        label: "Completion %",
+        data: data.departments,
+        backgroundColor: ["#21a39b", "#1f3a5f", "#16794c", "#b7791f", "#0f766e"],
+        borderRadius: 8
+      }]
+    },
+    options: {
+      ...sharedOptions,
+      scales: chartScales(textColor, gridColor, 100)
+    }
+  }));
+}
+
+function chartScales(textColor, gridColor, max) {
+  return {
+    x: { ticks: { color: textColor }, grid: { display: false } },
+    y: { beginAtZero: true, max, ticks: { color: textColor }, grid: { color: gridColor } }
+  };
+}
+
+function destroyAnalyticsCharts() {
+  analyticsCharts.forEach(chart => chart.destroy());
+  analyticsCharts = [];
 }
 
 function renderMetrics(metrics) {
