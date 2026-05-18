@@ -8,10 +8,7 @@ A self-contained goal setting and tracking portal prototype for the AtomQuest 1.
 Open `index.html` in a browser, or serve the folder with any static server.
 
 Current local URL:
-
-```text
-http://localhost:8080/index.html
-```
+ https://zippy-bubblegum-650b7b.netlify.app/
 
 ## Demo Roles
 
